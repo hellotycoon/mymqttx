@@ -927,6 +927,31 @@ function reorderDraggedElement(container, draggedEl, targetIndex, clientX, clien
   return clamped;
 }
 
+function restoreContainerOrder(container, orderedIds) {
+  const children = [...container.children];
+  const byId = new Map(children.map((child) => [child.dataset.id, child]));
+  const ordered = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+  if (ordered.length !== children.length) return;
+  const firstRects = new Map(children.map((child) => [child, child.getBoundingClientRect()]));
+  container.replaceChildren(...ordered);
+  const lastRects = new Map(ordered.map((child) => [child, child.getBoundingClientRect()]));
+
+  for (const child of ordered) {
+    const first = firstRects.get(child);
+    const last = lastRects.get(child);
+    const dx = first.left - last.left;
+    const dy = first.top - last.top;
+    child.style.transition = "none";
+    child.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  void container.offsetWidth;
+  for (const child of ordered) {
+    child.style.transition = "transform 190ms cubic-bezier(.2, .8, .2, 1)";
+    child.style.transform = "";
+  }
+}
+
 function startSubscriptionDragVisual(element) {
   state.subscriptionDragging = true;
   const ghost = createDragGhost(element, "subscription-ghost");
@@ -986,6 +1011,7 @@ function bindSubscriptionDrag() {
   let grabX = 0;
   let grabY = 0;
   let ghost = null;
+  let originalOrderIds = [];
   let mode = "idle";
   let moved = false;
   let lastTarget = -1;
@@ -1131,6 +1157,7 @@ function bindTopicRailDrag() {
       grabY = event.clientY - rect.top;
       startIndex = [...els.topicRail.children].indexOf(cardEl);
       lastTarget = startIndex;
+      originalOrderIds = [...els.topicRail.children].map((child) => child.dataset.id);
     }
     mode = "maybe";
     moved = false;
@@ -1160,16 +1187,24 @@ function bindTopicRailDrag() {
     }
     if (mode === "reorder") {
       event.preventDefault();
-      const step = Math.round((event.clientY - startY) / 56);
-      const target = Math.max(0, Math.min(startIndex + step, els.topicRail.children.length - 1));
+      moveDragGhost(ghost, event.clientX, event.clientY, grabX, grabY);
+      const railRect = els.topicRail.getBoundingClientRect();
+      const tooFar = event.clientY < railRect.top - 48 || event.clientY > railRect.bottom + 48;
+      if (tooFar) {
+        if (lastTarget !== -1) {
+          restoreContainerOrder(els.topicRail, originalOrderIds);
+          lastTarget = -1;
+        }
+        return;
+      }
+      autoScrollTopicRail(event.clientX);
+      const target = targetIndexFromPointer(els.topicRail, cardEl, event.clientX, "horizontal");
       if (target !== lastTarget) {
         lastTarget = reorderDraggedElement(els.topicRail, cardEl, target, event.clientX, event.clientY, grabX, grabY);
         updateVerticalLiftTransform(cardEl, event.clientY, grabY);
       } else {
         updateVerticalLiftTransform(cardEl, event.clientY, grabY);
       }
-      moveDragGhost(ghost, event.clientX, event.clientY, grabX, grabY);
-      autoScrollTopicRail(event.clientX);
     }
   });
 
@@ -1189,6 +1224,7 @@ function bindTopicRailDrag() {
     pointerId = null;
     cardEl = null;
     ghost = null;
+    originalOrderIds = [];
     startIndex = 0;
     mode = "idle";
     lastTarget = -1;
