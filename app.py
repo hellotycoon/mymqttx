@@ -8,6 +8,7 @@ import errno
 import json
 import mimetypes
 import os
+import shutil
 import signal
 import threading
 import time
@@ -28,12 +29,32 @@ APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
 CONFIG_DIR = Path.home() / ".config" / "mymqttx"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+LEGACY_CONFIG_DIR = Path.home() / ".Config" / "mymqttx"
+LEGACY_CONFIG_FILE = LEGACY_CONFIG_DIR / "config.json"
 MAX_BODY = 2 * 1024 * 1024
+
+
+def _migrate_legacy_config() -> None:
+    if not LEGACY_CONFIG_FILE.exists():
+        return
+    try:
+        legacy_text = LEGACY_CONFIG_FILE.read_text(encoding="utf-8")
+        if not isinstance(json.loads(legacy_text), dict):
+            raise ValueError("旧配置 JSON 必须是对象")
+        CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        tmp = CONFIG_FILE.with_suffix(".json.tmp")
+        tmp.write_text(legacy_text + "\n", encoding="utf-8")
+        os.chmod(tmp, 0o600)
+        tmp.replace(CONFIG_FILE)
+        shutil.rmtree(LEGACY_CONFIG_DIR)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"旧配置迁移失败，将继续使用新配置目录：{exc}")
 
 
 class ConfigStore:
     def __init__(self) -> None:
         self._lock = threading.RLock()
+        _migrate_legacy_config()
         self._config = self._load()
 
     def _load(self) -> dict:
