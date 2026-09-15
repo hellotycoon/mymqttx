@@ -1152,6 +1152,7 @@ function bindTopicRailDrag() {
   let startIndex = 0;
   let scrollLeft = 0;
   let cardEl = null;
+  let cardStartRect = null;
   let grabX = 0;
   let grabY = 0;
   let ghost = null;
@@ -1177,9 +1178,9 @@ function bindTopicRailDrag() {
     cardEl = event.target.closest?.(".topic-card") || null;
     startOnCard = Boolean(cardEl);
     if (cardEl) {
-      const rect = cardEl.getBoundingClientRect();
-      grabX = event.clientX - rect.left;
-      grabY = event.clientY - rect.top;
+      cardStartRect = cardEl.getBoundingClientRect();
+      grabX = event.clientX - cardStartRect.left;
+      grabY = event.clientY - cardStartRect.top;
       startIndex = [...els.topicRail.children].indexOf(cardEl);
       lastTarget = startIndex;
       originalOrderIds = [...els.topicRail.children].map((child) => child.dataset.id);
@@ -1193,11 +1194,13 @@ function bindTopicRailDrag() {
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
     if (mode === "maybe") {
-      if (startOnCard && cardEl && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      const insideOriginalCard = Boolean(cardStartRect && event.clientX >= cardStartRect.left && event.clientX <= cardStartRect.right && event.clientY >= cardStartRect.top && event.clientY <= cardStartRect.bottom);
+      const outsideOriginalCard = Boolean(cardStartRect && (event.clientX < cardStartRect.left - 18 || event.clientX > cardStartRect.right + 18 || event.clientY < cardStartRect.top - 18 || event.clientY > cardStartRect.bottom + 18));
+      if (startOnCard && cardEl && !insideOriginalCard && outsideOriginalCard) {
         mode = "reorder";
         moved = true;
         ghost = startTopicReorderVisual(cardEl);
-      } else if (!startOnCard && Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
+      } else if (Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
         mode = "scroll";
         moved = true;
         els.topicRail.classList.add("dragging");
@@ -1248,6 +1251,7 @@ function bindTopicRailDrag() {
     els.topicRail.classList.remove("dragging");
     pointerId = null;
     cardEl = null;
+    cardStartRect = null;
     ghost = null;
     originalOrderIds = [];
     startOnCard = false;
