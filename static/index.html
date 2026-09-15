@@ -125,6 +125,11 @@
                   <span class="topic-indicator"></span>
                   <span id="activePublishTopic">—</span>
                   <span class="message-type" id="activePublishType">JSON</span>
+                  <div class="validation-status" id="validationStatus">
+                    <span></span>
+                    <span>JSON</span>
+                  </div>
+                  <span class="payload-size" id="payloadSize">0 B</span>
                 </div>
                 <div class="editor-controls">
                   <label class="field compact-field">
@@ -162,27 +167,18 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg>
                     保存当前配置
                   </button>
+                  <button class="button stop-button hidden" id="stopPublishBtn">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                    停止循环
+                  </button>
+                  <button class="button send-button" id="sendPublishBtn">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+                    <span>发送一次</span>
+                  </button>
                 </div>
               </div>
 
               <textarea id="payloadEditor" spellcheck="false" aria-label="JSON Payload"></textarea>
-
-              <div class="editor-footer">
-                <div class="validation-status" id="validationStatus">
-                  <span></span>
-                  <span>JSON</span>
-                </div>
-                <div class="footer-spacer"></div>
-                <span class="payload-size" id="payloadSize">0 B</span>
-                <button class="button stop-button hidden" id="stopPublishBtn">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                  停止循环
-                </button>
-                <button class="button send-button" id="sendPublishBtn">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
-                  <span>发送一次</span>
-                </button>
-              </div>
             </div>
           </section>
         </main>

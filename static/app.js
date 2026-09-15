@@ -813,6 +813,40 @@ function hideContextMenu() {
   els.contextMenu.classList.add("hidden");
 }
 
+function createDragGhost(source, extraClass) {
+  const rect = source.getBoundingClientRect();
+  const ghost = source.cloneNode(true);
+  ghost.classList.add("drag-ghost", extraClass);
+  ghost.style.left = `${rect.left}px`;
+  ghost.style.top = `${rect.top}px`;
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.position = "fixed";
+  ghost.style.margin = "0";
+  ghost.style.pointerEvents = "none";
+  ghost.style.zIndex = "9999";
+  document.body.append(ghost);
+  return ghost;
+}
+
+function moveDragGhost(ghost, clientX, clientY, grabX, grabY) {
+  if (!ghost) return;
+  ghost.style.left = `${clientX - grabX}px`;
+  ghost.style.top = `${clientY - grabY}px`;
+}
+
+function autoScrollTopicRail(clientX) {
+  const rect = els.topicRail.getBoundingClientRect();
+  const edge = 46;
+  const speed = 18;
+  const maxLeft = Math.max(0, els.topicRail.scrollWidth - els.topicRail.clientWidth);
+  if (clientX < rect.left + edge && els.topicRail.scrollLeft > 0) {
+    els.topicRail.scrollLeft = Math.max(0, els.topicRail.scrollLeft - speed);
+  } else if (clientX > rect.right - edge && els.topicRail.scrollLeft < maxLeft) {
+    els.topicRail.scrollLeft = Math.min(maxLeft, els.topicRail.scrollLeft + speed);
+  }
+}
+
 function updateDraggedTransform(element, clientX, clientY, grabX, grabY) {
   element.style.transition = "none";
   element.style.transform = "none";
@@ -895,19 +929,19 @@ function reorderDraggedElement(container, draggedEl, targetIndex, clientX, clien
 
 function startSubscriptionDragVisual(element) {
   state.subscriptionDragging = true;
+  const ghost = createDragGhost(element, "subscription-ghost");
   element.classList.add("dragging");
-  element.style.zIndex = "20";
-  element.style.transition = "none";
+  element.style.opacity = "0";
   document.body.classList.add("list-dragging");
+  return ghost;
 }
 
-function cleanupSubscriptionDragVisual(element) {
+function cleanupSubscriptionDragVisual(element, ghost) {
   state.subscriptionDragging = false;
+  if (ghost) ghost.remove();
   if (element) {
     element.classList.remove("dragging");
-    element.style.zIndex = "";
-    element.style.transition = "";
-    element.style.transform = "";
+    element.style.opacity = "";
   }
   document.body.classList.remove("list-dragging");
   clearDragTransforms(els.subscriptionList, element);
@@ -951,6 +985,7 @@ function bindSubscriptionDrag() {
   let itemEl = null;
   let grabX = 0;
   let grabY = 0;
+  let ghost = null;
   let mode = "idle";
   let moved = false;
   let lastTarget = -1;
@@ -979,7 +1014,7 @@ function bindSubscriptionDrag() {
       if (Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx) * 1.15) {
         mode = "dragging";
         moved = true;
-        startSubscriptionDragVisual(itemEl);
+        ghost = startSubscriptionDragVisual(itemEl);
       } else if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy) * 1.15) {
         mode = "ignore";
         return;
@@ -995,21 +1030,24 @@ function bindSubscriptionDrag() {
     } else {
       updateDraggedTransform(itemEl, event.clientX, event.clientY, grabX, grabY);
     }
+    moveDragGhost(ghost, event.clientX, event.clientY, grabX, grabY);
   });
 
   const finish = (event) => {
     if (event.pointerId !== pointerId) return;
     const draggedEl = itemEl;
+    const dragGhost = ghost;
     if (mode === "dragging") {
       const displayedIds = [...els.subscriptionList.children].map((child) => child.dataset.id);
       void commitSubscriptionReorder(displayedIds)
         .catch((error) => toast(error.message, "error"))
-        .finally(() => cleanupSubscriptionDragVisual(draggedEl));
+        .finally(() => cleanupSubscriptionDragVisual(draggedEl, dragGhost));
     } else {
-      cleanupSubscriptionDragVisual(draggedEl);
+      cleanupSubscriptionDragVisual(draggedEl, dragGhost);
     }
     pointerId = null;
     itemEl = null;
+    ghost = null;
     mode = "idle";
     lastTarget = -1;
   };
@@ -1027,20 +1065,20 @@ function bindSubscriptionDrag() {
 
 function startTopicReorderVisual(card) {
   state.publishDragging = true;
+  const ghost = createDragGhost(card, "topic-ghost");
   card.classList.add("reordering");
-  card.style.zIndex = "20";
-  card.style.transition = "none";
+  card.style.opacity = "0";
   els.topicRail.classList.add("reordering");
   document.body.classList.add("topic-reordering");
+  return ghost;
 }
 
-function cleanupTopicReorderVisual(card) {
+function cleanupTopicReorderVisual(card, ghost) {
   state.publishDragging = false;
+  if (ghost) ghost.remove();
   if (card) {
     card.classList.remove("reordering");
-    card.style.zIndex = "";
-    card.style.transition = "";
-    card.style.transform = "";
+    card.style.opacity = "";
   }
   els.topicRail.classList.remove("reordering");
   document.body.classList.remove("topic-reordering");
@@ -1068,6 +1106,7 @@ function bindTopicRailDrag() {
   let cardEl = null;
   let grabX = 0;
   let grabY = 0;
+  let ghost = null;
   let mode = "idle";
   let moved = false;
   let lastTarget = -1;
@@ -1105,7 +1144,7 @@ function bindTopicRailDrag() {
       if (cardEl && Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx) * 1.15) {
         mode = "reorder";
         moved = true;
-        startTopicReorderVisual(cardEl);
+        ghost = startTopicReorderVisual(cardEl);
       } else if (Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
         mode = "scroll";
         moved = true;
@@ -1129,23 +1168,27 @@ function bindTopicRailDrag() {
       } else {
         updateVerticalLiftTransform(cardEl, event.clientY, grabY);
       }
+      moveDragGhost(ghost, event.clientX, event.clientY, grabX, grabY);
+      autoScrollTopicRail(event.clientX);
     }
   });
 
   const finish = (event) => {
     if (event.pointerId !== pointerId) return;
     const draggedEl = cardEl;
+    const dragGhost = ghost;
     if (mode === "reorder") {
       const orderedIds = [...els.topicRail.children].map((child) => child.dataset.id);
       void commitPublishReorder(orderedIds)
         .catch((error) => toast(error.message, "error"))
-        .finally(() => cleanupTopicReorderVisual(draggedEl));
+        .finally(() => cleanupTopicReorderVisual(draggedEl, dragGhost));
     } else {
-      cleanupTopicReorderVisual(draggedEl);
+      cleanupTopicReorderVisual(draggedEl, dragGhost);
     }
     els.topicRail.classList.remove("dragging");
     pointerId = null;
     cardEl = null;
+    ghost = null;
     startIndex = 0;
     mode = "idle";
     lastTarget = -1;
