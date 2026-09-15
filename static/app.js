@@ -1156,6 +1156,7 @@ function bindTopicRailDrag() {
   let grabY = 0;
   let ghost = null;
   let originalOrderIds = [];
+  let startOnCard = false;
   let mode = "idle";
   let moved = false;
   let lastTarget = -1;
@@ -1174,6 +1175,7 @@ function bindTopicRailDrag() {
     startY = event.clientY;
     scrollLeft = els.topicRail.scrollLeft;
     cardEl = event.target.closest?.(".topic-card") || null;
+    startOnCard = Boolean(cardEl);
     if (cardEl) {
       const rect = cardEl.getBoundingClientRect();
       grabX = event.clientX - rect.left;
@@ -1191,11 +1193,11 @@ function bindTopicRailDrag() {
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
     if (mode === "maybe") {
-      if (cardEl && Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+      if (startOnCard && cardEl && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         mode = "reorder";
         moved = true;
         ghost = startTopicReorderVisual(cardEl);
-      } else if (Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
+      } else if (!startOnCard && Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
         mode = "scroll";
         moved = true;
         els.topicRail.classList.add("dragging");
@@ -1248,6 +1250,7 @@ function bindTopicRailDrag() {
     cardEl = null;
     ghost = null;
     originalOrderIds = [];
+    startOnCard = false;
     startIndex = 0;
     mode = "idle";
     lastTarget = -1;
