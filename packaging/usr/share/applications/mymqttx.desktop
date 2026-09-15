@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MyMQTTX
+Name[zh_CN]=MyMQTTX
+Comment=Agent MQTT Testbench
+Comment[zh_CN]=Agent MQTT 测试台
+Exec=/usr/bin/mymqttx
+Icon=/opt/mymqttx/static/mymqttx.svg
+Terminal=false
+Categories=Development;Network;Utility;
+StartupNotify=true

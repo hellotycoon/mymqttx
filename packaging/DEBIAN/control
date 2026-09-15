@@ -1,0 +1,11 @@
+Package: mymqttx
+Version: 0.1.0
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.10)
+Maintainer: MyMQTTX <dev@localhost>
+Description: Lightweight MQTT test bench for Agent development
+ MyMQTTX is a dependency-free local MQTT client with a browser-based UI.
+ It supports publishing and subscribing to Agent-related MQTT topics and
+ stores per-user settings in ~/.Config/mymqttx.
