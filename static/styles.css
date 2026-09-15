@@ -352,14 +352,14 @@ body.topic-reordering .topic-rail { cursor: grabbing; user-select: none; }
   gap: 8px;
   pointer-events: none;
 }
-.editor-actions .button { pointer-events: auto; box-shadow: 0 10px 22px rgba(28, 48, 62, .12); }
+.editor-actions .button { pointer-events: auto; box-shadow: 0 12px 24px rgba(28, 48, 62, .16); }
 
 .validation-status { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; color: var(--green-dark); font-size: 9px; white-space: nowrap; }
 .validation-status span:first-child { width: 6px; height: 6px; background: var(--green); border-radius: 50%; }
 .validation-status.invalid { color: var(--danger); }
 .validation-status.invalid span:first-child { background: var(--danger); }
 .payload-size { flex: 0 0 auto; color: var(--muted); font-family: var(--mono); font-size: 9px; white-space: nowrap; }
-.send-button { min-width: 108px; color: #fff; background: var(--green); box-shadow: 0 12px 24px rgba(25, 183, 123, .22); }
+.send-button { min-width: 108px; color: #fff; background: var(--green); box-shadow: 0 16px 30px rgba(25, 183, 123, .28), 0 4px 10px rgba(31, 51, 67, .12); }
 .send-button:hover { color: #fff; background: var(--green-dark); border-color: var(--green-dark); }
 .stop-button { min-width: 96px; color: var(--danger); background: #fff7f7; border-color: #f0c5c5; }
 .stop-button:hover { color: #c83939; background: #fff1f1; border-color: var(--danger); }
