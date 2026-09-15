@@ -398,6 +398,9 @@ function confirmDeleteSubscription(item) {
 function renderPublishTopics() {
   if (!state.config) return;
   if (state.publishDragging) return;
+  const previousScrollLeft = els.topicRail.scrollLeft;
+  const previousScrollBehavior = els.topicRail.style.scrollBehavior;
+  els.topicRail.style.scrollBehavior = "auto";
   const fragment = document.createDocumentFragment();
   for (const item of state.config.publishTopics) {
     const card = document.createElement("button");
@@ -420,6 +423,8 @@ function renderPublishTopics() {
     fragment.append(card);
   }
   els.topicRail.replaceChildren(fragment);
+  els.topicRail.scrollLeft = previousScrollLeft;
+  els.topicRail.style.scrollBehavior = previousScrollBehavior;
   const hasTopics = state.config.publishTopics.length > 0;
   els.publishEditor.classList.toggle("hidden", !hasTopics);
 }
