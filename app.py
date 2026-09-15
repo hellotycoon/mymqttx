@@ -438,7 +438,7 @@ class ReusableHTTPServer(ThreadingHTTPServer):
 def main() -> None:
     parser = argparse.ArgumentParser(description="MyMQTTX — 轻量级 Agent MQTT 测试台")
     parser.add_argument("--host", default="127.0.0.1", help="Web UI 监听地址，默认 127.0.0.1")
-    parser.add_argument("--port", type=int, default=8765, help="Web UI 监听端口，默认 8765")
+    parser.add_argument("--port", type=int, default=9000, help="Web UI 监听端口，默认 9000")
     parser.add_argument("--no-browser", action="store_true", help="启动时不自动打开浏览器")
     args = parser.parse_args()
 

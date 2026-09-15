@@ -9,16 +9,16 @@ cd ~/mymqttx
 ./run.sh
 ```
 
-应用会在本机启动 `http://127.0.0.1:8765` 并自动打开默认浏览器。若不希望自动打开浏览器：
+应用会在本机启动 `http://127.0.0.1:9000` 并自动打开默认浏览器。若不希望自动打开浏览器：
 
 ```bash
 ./run.sh --no-browser
 ```
 
-如果 8765 端口已被占用，可指定其他端口：
+如果 9000 端口已被占用，可指定其他端口：
 
 ```bash
-./run.sh --port 18765
+./run.sh --port 9001
 ```
 
 按终端中的 `Ctrl+C` 退出。退出时会主动断开 MQTT Broker。
@@ -52,17 +52,6 @@ cd ~/mymqttx
 
 ## 默认数据来源
 
-发布模板来自工作目录中的以下脚本：
+订阅列表和发布列表来自agent中发布订阅接口
 
-- `pub_ads_toc_request.sh`
-- `pub_missioncmd_request.sh`
-- `pub_localization_odom.sh` / `set_pose.sh`
-- `pub_function_control_state.sh`
-- `pub_function_control_battery.sh`
-- `pub_support_fun_state.sh`
-- `pub_light_rain_sensor.sh`
-- `pub_localplan_feedback.sh`
-- `pub_global_specialarea_request.sh`
-- `set-fcw-result.sh`
-
-默认订阅列表来自 `agent.yaml` 中 `pub agent` 的 MQTT 输出规则。
+## 注意: 该软件通过mqtt通讯,该软件发布订阅的topic都需要对应在agent启动项中配置成mqtt通信
