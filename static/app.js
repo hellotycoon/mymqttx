@@ -628,28 +628,45 @@ function openPublishTopicModal(existing = null) {
 function showPublishMenu(item, x, y) {
   els.contextMenu.innerHTML = `
     <button data-action="edit"><svg viewBox="0 0 24 24"><path d="m4 20 4-1 11-11-3-3L5 16z"/><path d="m14 7 3 3"/></svg>编辑 Topic</button>
-    <button data-action="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>复制配置</button>
+    <button data-action="copy-topic"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>复制 topic</button>
+    <button data-action="copy-payload"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>复制 payload</button>
     <div class="context-divider"></div>
     <button class="danger" data-action="delete"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13"/></svg>删除 Topic</button>`;
   els.contextMenu.querySelector('[data-action="edit"]').onclick = () => openPublishTopicModal(item);
-  els.contextMenu.querySelector('[data-action="duplicate"]').onclick = () => duplicatePublishTopic(item);
+  els.contextMenu.querySelector('[data-action="copy-topic"]').onclick = () => copyPublishTopic(item);
+  els.contextMenu.querySelector('[data-action="copy-payload"]').onclick = () => copyPublishPayload(item);
   els.contextMenu.querySelector('[data-action="delete"]').onclick = () => confirmDeletePublish(item);
   placeContextMenu(x, y);
 }
 
-async function duplicatePublishTopic(item) {
-  hideContextMenu();
-  const clone = { ...item, id: uuid(), topic: `${item.topic}/copy` };
-  state.config.publishTopics.push(clone);
-  state.selectedPublishId = clone.id;
+async function copyTextToClipboard(text, label) {
   try {
-    await saveConfig();
-    renderPublishTopics();
-    loadActiveEditor();
-    toast("发布配置已复制");
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    toast(`${label}已复制`);
   } catch (error) {
-    toast(error.message, "error");
+    toast(`复制失败：${error.message}`, "error");
   }
+}
+
+async function copyPublishTopic(item) {
+  hideContextMenu();
+  await copyTextToClipboard(item.topic, "Topic");
+}
+
+async function copyPublishPayload(item) {
+  hideContextMenu();
+  await copyTextToClipboard(item.payload, "Payload");
 }
 
 function confirmDeletePublish(item) {
@@ -1133,6 +1150,7 @@ function bindTopicRailDrag() {
   let grabX = 0;
   let grabY = 0;
   let ghost = null;
+  let originalOrderIds = [];
   let mode = "idle";
   let moved = false;
   let lastTarget = -1;
