@@ -125,7 +125,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   background: #fff;
   border-right: 1px solid var(--line);
 }
-.panel-heading, .monitor-toolbar, .publisher-heading { display: flex; align-items: center; justify-content: space-between; }
+.panel-heading, .monitor-toolbar { display: flex; align-items: center; justify-content: space-between; }
 .panel-heading { padding: 0 4px 16px; }
 .eyebrow { color: var(--green-dark); font-size: 9px; font-weight: 800; letter-spacing: 1.6px; line-height: 1.5; }
 h1, h2, h3, p { margin: 0; }
@@ -235,11 +235,6 @@ body.list-dragging .subscription-list { cursor: grabbing; user-select: none; }
 body.publisher-resizing { user-select: none; }
 
 .publisher-section { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: #fff; box-shadow: 0 -8px 26px rgba(25,45,60,.035); }
-.publisher-heading { height: 40px; flex: 0 0 40px; padding: 0 18px 0 22px; border-bottom: 1px solid var(--line-soft); box-shadow: 0 6px 16px rgba(28, 48, 62, .055); }
-.publisher-heading > div:first-child { display: flex; align-items: baseline; gap: 9px; }
-.publisher-heading strong { font-size: 13px; }
-.scroll-hint { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; }
-.scroll-hint svg { width: 14px; height: 14px; }
 
 .topic-rail-wrap { height: 71px; flex: 0 0 71px; display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
 .topic-rail { min-width: 0; flex: 1; height: 52px; display: flex; align-items: stretch; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; cursor: grab; scroll-behavior: smooth; }
