@@ -60,6 +60,8 @@ const state = {
   publishTimers: new Map(),
   modalHandler: null,
   configSaving: false,
+  subscriptionDragging: false,
+  publishDragging: false,
 };
 
 async function api(path, options = {}) {
@@ -187,6 +189,7 @@ function bindEvents() {
     if (event.key === "Escape") hideContextMenu();
   });
   window.addEventListener("resize", hideContextMenu);
+  bindSubscriptionDrag();
   bindTopicRailDrag();
   bindPublisherResize();
   els.modalForm.addEventListener("submit", handleModalSubmit);
@@ -271,6 +274,7 @@ function openConnectionModal() {
 
 function renderSubscriptions() {
   if (!state.config) return;
+  if (state.subscriptionDragging) return;
   const previousScrollTop = els.subscriptionList.scrollTop;
   const query = els.subscriptionSearch.value.trim().toLowerCase();
   const subscriptions = state.config.subscriptions.filter((item) => item.topic.toLowerCase().includes(query));
@@ -393,6 +397,7 @@ function confirmDeleteSubscription(item) {
 
 function renderPublishTopics() {
   if (!state.config) return;
+  if (state.publishDragging) return;
   const fragment = document.createDocumentFragment();
   for (const item of state.config.publishTopics) {
     const card = document.createElement("button");
@@ -424,10 +429,6 @@ function selectPublishTopic(id) {
   state.selectedPublishId = id;
   renderPublishTopics();
   loadActiveEditor();
-  requestAnimationFrame(() => {
-    const card = [...els.topicRail.children].find((node) => node.dataset.id === id);
-    card?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  });
 }
 
 function loadActiveEditor() {
@@ -812,41 +813,346 @@ function hideContextMenu() {
   els.contextMenu.classList.add("hidden");
 }
 
-function bindTopicRailDrag() {
-  let down = false;
-  let startX = 0;
-  let scrollLeft = 0;
-  let moved = false;
+function updateDraggedTransform(element, clientX, clientY, grabX, grabY) {
+  element.style.transition = "none";
+  element.style.transform = "none";
+  const rect = element.getBoundingClientRect();
+  element.style.transform = `translate(${clientX - grabX - rect.left}px, ${clientY - grabY - rect.top}px) scale(1.02)`;
+}
+
+function updateVerticalLiftTransform(element, clientY, grabY) {
+  element.style.transition = "none";
+  element.style.transform = "none";
+  const rect = element.getBoundingClientRect();
+  element.style.transform = `translateY(${clientY - grabY - rect.top}px) scale(1.03)`;
+}
+
+function clearDragTransforms(container, draggedEl) {
+  for (const child of container.children) {
+    if (child === draggedEl) continue;
+    child.style.transition = "";
+    child.style.transform = "";
+  }
+  if (draggedEl) {
+    draggedEl.style.transition = "";
+    draggedEl.style.transform = "";
+  }
+}
+
+function targetIndexFromPointer(container, draggedEl, coordinate, direction) {
+  let index = 0;
+  for (const child of container.children) {
+    if (child === draggedEl) continue;
+    const rect = child.getBoundingClientRect();
+    const center = direction === "vertical"
+      ? rect.top + rect.height / 2
+      : rect.left + rect.width / 2;
+    if (coordinate < center) break;
+    index += 1;
+  }
+  return index;
+}
+
+function reorderDraggedElement(container, draggedEl, targetIndex, clientX, clientY, grabX, grabY) {
+  const children = [...container.children];
+  const fromIndex = children.indexOf(draggedEl);
+  if (fromIndex < 0) return -1;
+  const siblings = children.filter((child) => child !== draggedEl);
+  const clamped = Math.max(0, Math.min(targetIndex, siblings.length));
+  if (clamped === fromIndex) {
+    updateDraggedTransform(draggedEl, clientX, clientY, grabX, grabY);
+    return fromIndex;
+  }
+
+  draggedEl.style.transition = "none";
+  draggedEl.style.transform = "none";
+  const firstRects = new Map(children.map((child) => [child, child.getBoundingClientRect()]));
+  container.insertBefore(draggedEl, siblings[clamped] || null);
+  const lastRects = new Map(children.map((child) => [child, child.getBoundingClientRect()]));
+
+  for (const child of children) {
+    if (child === draggedEl) continue;
+    const first = firstRects.get(child);
+    const last = lastRects.get(child);
+    const dx = first.left - last.left;
+    const dy = first.top - last.top;
+    child.style.transition = "none";
+    child.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  void container.offsetWidth;
+  for (const child of children) {
+    if (child === draggedEl) continue;
+    child.style.transition = "transform 190ms cubic-bezier(.2, .8, .2, 1)";
+    child.style.transform = "";
+  }
+
+  const draggedLast = lastRects.get(draggedEl);
+  draggedEl.style.transition = "none";
+  draggedEl.style.transform = `translate(${clientX - grabX - draggedLast.left}px, ${clientY - grabY - draggedLast.top}px) scale(1.02)`;
+  return clamped;
+}
+
+function startSubscriptionDragVisual(element) {
+  state.subscriptionDragging = true;
+  element.classList.add("dragging");
+  element.style.zIndex = "20";
+  element.style.transition = "none";
+  document.body.classList.add("list-dragging");
+}
+
+function cleanupSubscriptionDragVisual(element) {
+  state.subscriptionDragging = false;
+  if (element) {
+    element.classList.remove("dragging");
+    element.style.zIndex = "";
+    element.style.transition = "";
+    element.style.transform = "";
+  }
+  document.body.classList.remove("list-dragging");
+  clearDragTransforms(els.subscriptionList, element);
+}
+
+async function commitSubscriptionReorder(displayedIds) {
+  const full = state.config.subscriptions;
+  const displayedItems = displayedIds
+    .map((id) => full.find((item) => item.id === id))
+    .filter(Boolean);
+  if (!displayedIds.length || displayedItems.length !== displayedIds.length) return;
+
+  const query = els.subscriptionSearch.value.trim().toLowerCase();
+  if (!query) {
+    if (displayedIds.length !== full.length) return;
+    state.config.subscriptions = displayedItems;
+  } else {
+    const filteredIds = new Set(displayedIds);
+    const base = full.filter((item) => !filteredIds.has(item.id));
+    const allIds = full.map((item) => item.id);
+    const slots = displayedIds.map((id) => allIds.indexOf(id)).sort((a, b) => a - b);
+    if (slots.length !== displayedItems.length) return;
+    const next = new Array(full.length);
+    for (const slot of slots) next[slot] = displayedItems[slots.indexOf(slot)];
+    let cursor = 0;
+    for (let index = 0; index < next.length; index += 1) {
+      if (next[index] === undefined) next[index] = base[cursor++];
+    }
+    state.config.subscriptions = next;
+  }
+
+  await saveConfig();
+  state.subscriptionDragging = false;
+  renderSubscriptions();
+}
+
+function bindSubscriptionDrag() {
   let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let itemEl = null;
+  let grabX = 0;
+  let grabY = 0;
+  let mode = "idle";
+  let moved = false;
+  let lastTarget = -1;
+
+  els.subscriptionList.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const node = event.target.closest?.(".subscription-item");
+    if (!node || !els.subscriptionList.contains(node)) return;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    itemEl = node;
+    const rect = node.getBoundingClientRect();
+    grabX = event.clientX - rect.left;
+    grabY = event.clientY - rect.top;
+    lastTarget = [...els.subscriptionList.children].indexOf(node);
+    mode = "maybe";
+    moved = false;
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (mode === "idle" || event.pointerId !== pointerId || !itemEl) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if (mode === "maybe") {
+      if (Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+        mode = "dragging";
+        moved = true;
+        startSubscriptionDragVisual(itemEl);
+      } else if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        mode = "ignore";
+        return;
+      } else {
+        return;
+      }
+    }
+    if (mode !== "dragging") return;
+    event.preventDefault();
+    const target = targetIndexFromPointer(els.subscriptionList, itemEl, event.clientY, "vertical");
+    if (target !== lastTarget) {
+      lastTarget = reorderDraggedElement(els.subscriptionList, itemEl, target, event.clientX, event.clientY, grabX, grabY);
+    } else {
+      updateDraggedTransform(itemEl, event.clientX, event.clientY, grabX, grabY);
+    }
+  });
+
+  const finish = (event) => {
+    if (event.pointerId !== pointerId) return;
+    const draggedEl = itemEl;
+    if (mode === "dragging") {
+      const displayedIds = [...els.subscriptionList.children].map((child) => child.dataset.id);
+      void commitSubscriptionReorder(displayedIds)
+        .catch((error) => toast(error.message, "error"))
+        .finally(() => cleanupSubscriptionDragVisual(draggedEl));
+    } else {
+      cleanupSubscriptionDragVisual(draggedEl);
+    }
+    pointerId = null;
+    itemEl = null;
+    mode = "idle";
+    lastTarget = -1;
+  };
+
+  document.addEventListener("pointerup", finish);
+  document.addEventListener("pointercancel", finish);
+  els.subscriptionList.addEventListener("click", (event) => {
+    if (moved) {
+      event.preventDefault();
+      event.stopPropagation();
+      moved = false;
+    }
+  }, true);
+}
+
+function startTopicReorderVisual(card) {
+  state.publishDragging = true;
+  card.classList.add("reordering");
+  card.style.zIndex = "20";
+  card.style.transition = "none";
+  els.topicRail.classList.add("reordering");
+  document.body.classList.add("topic-reordering");
+}
+
+function cleanupTopicReorderVisual(card) {
+  state.publishDragging = false;
+  if (card) {
+    card.classList.remove("reordering");
+    card.style.zIndex = "";
+    card.style.transition = "";
+    card.style.transform = "";
+  }
+  els.topicRail.classList.remove("reordering");
+  document.body.classList.remove("topic-reordering");
+  clearDragTransforms(els.topicRail, card);
+}
+
+async function commitPublishReorder(orderedIds) {
+  const byId = new Map(state.config.publishTopics.map((item) => [item.id, item]));
+  const next = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+  if (next.length !== state.config.publishTopics.length) return;
+  const changed = next.some((item, index) => state.config.publishTopics[index]?.id !== item.id);
+  if (!changed) return;
+  state.config.publishTopics = next;
+  await saveConfig();
+  state.publishDragging = false;
+  renderPublishTopics();
+}
+
+function bindTopicRailDrag() {
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let startIndex = 0;
+  let scrollLeft = 0;
+  let cardEl = null;
+  let grabX = 0;
+  let grabY = 0;
+  let mode = "idle";
+  let moved = false;
+  let lastTarget = -1;
+
   els.topicRail.addEventListener("wheel", (event) => {
     if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
       event.preventDefault();
       els.topicRail.scrollLeft += event.deltaY;
     }
   }, { passive: false });
+
   els.topicRail.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
-    down = true;
-    moved = false;
     pointerId = event.pointerId;
     startX = event.clientX;
+    startY = event.clientY;
     scrollLeft = els.topicRail.scrollLeft;
-    els.topicRail.classList.add("dragging");
+    cardEl = event.target.closest?.(".topic-card") || null;
+    if (cardEl) {
+      const rect = cardEl.getBoundingClientRect();
+      grabX = event.clientX - rect.left;
+      grabY = event.clientY - rect.top;
+      startIndex = [...els.topicRail.children].indexOf(cardEl);
+      lastTarget = startIndex;
+    }
+    mode = "maybe";
+    moved = false;
   });
+
   document.addEventListener("pointermove", (event) => {
-    if (!down || event.pointerId !== pointerId) return;
-    const delta = event.clientX - startX;
-    if (Math.abs(delta) > 4) moved = true;
-    els.topicRail.scrollLeft = scrollLeft - delta;
+    if (mode === "idle" || event.pointerId !== pointerId) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if (mode === "maybe") {
+      if (cardEl && Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+        mode = "reorder";
+        moved = true;
+        startTopicReorderVisual(cardEl);
+      } else if (Math.abs(dx) > 5 && Math.abs(dx) >= Math.abs(dy)) {
+        mode = "scroll";
+        moved = true;
+        els.topicRail.classList.add("dragging");
+      } else {
+        return;
+      }
+    }
+    if (mode === "scroll") {
+      event.preventDefault();
+      els.topicRail.scrollLeft = scrollLeft - dx;
+      return;
+    }
+    if (mode === "reorder") {
+      event.preventDefault();
+      const step = Math.round((event.clientY - startY) / 56);
+      const target = Math.max(0, Math.min(startIndex + step, els.topicRail.children.length - 1));
+      if (target !== lastTarget) {
+        lastTarget = reorderDraggedElement(els.topicRail, cardEl, target, event.clientX, event.clientY, grabX, grabY);
+        updateVerticalLiftTransform(cardEl, event.clientY, grabY);
+      } else {
+        updateVerticalLiftTransform(cardEl, event.clientY, grabY);
+      }
+    }
   });
-  const finishDrag = (event) => {
+
+  const finish = (event) => {
     if (event.pointerId !== pointerId) return;
-    down = false;
-    pointerId = null;
+    const draggedEl = cardEl;
+    if (mode === "reorder") {
+      const orderedIds = [...els.topicRail.children].map((child) => child.dataset.id);
+      void commitPublishReorder(orderedIds)
+        .catch((error) => toast(error.message, "error"))
+        .finally(() => cleanupTopicReorderVisual(draggedEl));
+    } else {
+      cleanupTopicReorderVisual(draggedEl);
+    }
     els.topicRail.classList.remove("dragging");
+    pointerId = null;
+    cardEl = null;
+    startIndex = 0;
+    mode = "idle";
+    lastTarget = -1;
   };
-  document.addEventListener("pointerup", finishDrag);
-  document.addEventListener("pointercancel", finishDrag);
+
+  document.addEventListener("pointerup", finish);
+  document.addEventListener("pointercancel", finish);
   els.topicRail.addEventListener("click", (event) => {
     if (moved) {
       event.preventDefault();

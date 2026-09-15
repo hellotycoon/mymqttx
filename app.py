@@ -26,7 +26,7 @@ from mqtt_client import MQTTClient, MQTTError, MQTTMessage
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
-CONFIG_DIR = Path.home() / ".Config" / "mymqttx"
+CONFIG_DIR = Path.home() / ".config" / "mymqttx"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 MAX_BODY = 2 * 1024 * 1024
 

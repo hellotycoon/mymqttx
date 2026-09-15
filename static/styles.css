@@ -164,6 +164,14 @@ h2 { margin-top: 1px; font-size: 17px; }
 .subscription-item.active::before { background: #fff; }
 .subscription-item.selected { box-shadow: 0 0 0 2px rgba(25, 183, 123, .22); }
 .subscription-item.paused { opacity: .63; background: #f8f9fa; }
+.subscription-item.dragging {
+  opacity: .94;
+  border-color: #9ad8c2;
+  box-shadow: 0 12px 28px rgba(31, 51, 67, .18);
+  cursor: grabbing;
+}
+body.list-dragging,
+body.list-dragging .subscription-list { cursor: grabbing; user-select: none; }
 .subscription-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
 .aside-tip { padding-top: 9px; color: #a4afb7; border-top: 1px solid var(--line-soft); font-size: 10px; text-align: center; }
 
@@ -237,10 +245,19 @@ body.publisher-resizing { user-select: none; }
 .topic-rail { min-width: 0; flex: 1; height: 52px; display: flex; align-items: stretch; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; cursor: grab; scroll-behavior: smooth; }
 .topic-rail::-webkit-scrollbar { display: none; }
 .topic-rail.dragging { cursor: grabbing; scroll-behavior: auto; }
+.topic-rail.reordering { cursor: grabbing; scroll-behavior: auto; }
 .topic-card { position: relative; flex: 0 0 auto; min-width: 128px; max-width: 230px; padding: 8px 13px 7px; display: flex; flex-direction: column; justify-content: center; color: var(--ink-soft); background: #fff; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; overflow: hidden; transition: border-color .15s, color .15s, background .15s, box-shadow .15s; }
 .topic-card:hover { border-color: #a9dec9; }
 .topic-card.active { color: #087d54; background: var(--green-pale); border-color: var(--green); box-shadow: inset 0 -2px 0 var(--green); }
 .topic-card.running::after { content: ""; position: absolute; right: 8px; top: 8px; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 1s infinite; }
+.topic-card.reordering {
+  opacity: .96;
+  border-color: var(--green);
+  box-shadow: 0 12px 26px rgba(25, 183, 123, .22);
+  cursor: grabbing;
+}
+body.topic-reordering,
+body.topic-reordering .topic-rail { cursor: grabbing; user-select: none; }
 .topic-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 10px; font-weight: 700; }
 .topic-card-meta { margin-top: 5px; color: var(--muted); font-size: 8px; }
 .rail-arrow { width: 28px; height: 40px; flex: 0 0 28px; color: var(--muted); background: transparent; border: 0; border-radius: 7px; font-size: 24px; cursor: pointer; }
