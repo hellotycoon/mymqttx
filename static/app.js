@@ -227,14 +227,17 @@ async function handleConnectionClick() {
 
 function openConnectionModal() {
   const broker = state.config.broker;
+  const recentBrokers = Array.isArray(state.config.recentBrokers) ? state.config.recentBrokers : [];
+  const recentHosts = [...new Set(recentBrokers.map((item) => item.host).filter(Boolean))];
+  const recentPorts = [...new Set(recentBrokers.map((item) => String(item.port)).filter(Boolean))];
   showModal({
     eyebrow: "BROKER CONNECTION",
     title: "连接 MQTT Broker",
     confirmText: "连接",
     body: `
       <div class="form-grid">
-        <div class="form-row"><label for="brokerHost">主机</label><input id="brokerHost" name="host" value="${escapeHtml(broker.host)}" required></div>
-        <div class="form-row"><label for="brokerPort">端口</label><input id="brokerPort" name="port" type="number" min="1" max="65535" value="${escapeHtml(broker.port)}" required></div>
+        <div class="form-row"><label for="brokerHost">主机</label><input id="brokerHost" name="host" list="brokerHostList" value="${escapeHtml(broker.host)}" required><datalist id="brokerHostList">${recentHosts.map((host) => `<option value="${escapeHtml(host)}"></option>`).join("")}</datalist></div>
+        <div class="form-row"><label for="brokerPort">端口</label><input id="brokerPort" name="port" type="number" min="1" max="65535" list="brokerPortList" value="${escapeHtml(broker.port)}" required><datalist id="brokerPortList">${recentPorts.map((port) => `<option value="${escapeHtml(port)}"></option>`).join("")}</datalist></div>
         <div class="form-row full"><label for="brokerClientId">Client ID</label><input id="brokerClientId" name="clientId" value="${escapeHtml(broker.clientId)}" required></div>
         <div class="form-row"><label for="brokerUsername">用户名（可选）</label><input id="brokerUsername" name="username" value="${escapeHtml(broker.username)}" autocomplete="username"></div>
         <div class="form-row"><label for="brokerPassword">密码（可选）</label><input id="brokerPassword" name="password" type="password" value="${escapeHtml(broker.password)}" autocomplete="current-password"></div>
@@ -259,6 +262,11 @@ function openConnectionModal() {
         const result = await api("/api/connect", { method: "POST", body: connection });
         state.config.broker = connection;
         updateConnectionStatus(result.status);
+        try {
+          state.config = await api("/api/config");
+        } catch (error) {
+          // Broker 已连接成功，配置刷新失败不影响本次连接状态。
+        }
         if (result.subscriptionErrors?.length) {
           toast(`已连接，但 ${result.subscriptionErrors.length} 个订阅失败`, "warning", 6000);
         } else {

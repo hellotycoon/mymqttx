@@ -375,4 +375,5 @@ def default_config() -> dict:
         },
         "publishTopics": default_publish_topics(),
         "subscriptions": default_subscriptions(),
+        "recentBrokers": [],
     }
