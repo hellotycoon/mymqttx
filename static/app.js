@@ -184,6 +184,9 @@ function bindEvents() {
   });
   document.addEventListener("pointerdown", (event) => {
     if (!els.contextMenu.contains(event.target)) hideContextMenu();
+    if (!event.target.closest?.(".combo-input")) {
+      document.querySelectorAll(".combo-menu").forEach((menu) => menu.classList.add("hidden"));
+    }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideContextMenu();
@@ -236,8 +239,8 @@ function openConnectionModal() {
     confirmText: "连接",
     body: `
       <div class="form-grid">
-        <div class="form-row"><label for="brokerHost">主机</label><input id="brokerHost" name="host" list="brokerHostList" value="${escapeHtml(broker.host)}" required><datalist id="brokerHostList">${recentHosts.map((host) => `<option value="${escapeHtml(host)}"></option>`).join("")}</datalist></div>
-        <div class="form-row"><label for="brokerPort">端口</label><input id="brokerPort" name="port" type="number" min="1" max="65535" list="brokerPortList" value="${escapeHtml(broker.port)}" required><datalist id="brokerPortList">${recentPorts.map((port) => `<option value="${escapeHtml(port)}"></option>`).join("")}</datalist></div>
+        <div class="form-row"><label for="brokerHost">主机</label><div class="combo-input"><input id="brokerHost" name="host" value="${escapeHtml(broker.host)}" required><button type="button" class="combo-button" data-combo="brokerHost" aria-label="选择最近主机"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button><div class="combo-menu hidden" id="brokerHostMenu"></div></div></div>
+        <div class="form-row"><label for="brokerPort">端口</label><div class="combo-input"><input id="brokerPort" name="port" type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(broker.port)}" required><button type="button" class="combo-button" data-combo="brokerPort" aria-label="选择最近端口"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button><div class="combo-menu hidden" id="brokerPortMenu"></div></div></div>
         <div class="form-row full"><label for="brokerClientId">Client ID</label><input id="brokerClientId" name="clientId" value="${escapeHtml(broker.clientId)}" required></div>
         <div class="form-row"><label for="brokerUsername">用户名（可选）</label><input id="brokerUsername" name="username" value="${escapeHtml(broker.username)}" autocomplete="username"></div>
         <div class="form-row"><label for="brokerPassword">密码（可选）</label><input id="brokerPassword" name="password" type="password" value="${escapeHtml(broker.password)}" autocomplete="current-password"></div>
@@ -277,6 +280,47 @@ function openConnectionModal() {
         throw error;
       }
     },
+  });
+  requestAnimationFrame(() => bindBrokerDropdowns({ hosts: recentHosts, ports: recentPorts }));
+}
+
+function bindBrokerDropdowns({ hosts, ports }) {
+  const combos = [
+    { button: els.modalBody.querySelector('[data-combo="brokerHost"]'), menu: $("#brokerHostMenu"), input: $("#brokerHost"), values: hosts },
+    { button: els.modalBody.querySelector('[data-combo="brokerPort"]'), menu: $("#brokerPortMenu"), input: $("#brokerPort"), values: ports },
+  ];
+  const closeMenus = (except = null) => {
+    combos.forEach((combo) => {
+      if (combo.menu !== except) combo.menu.classList.add("hidden");
+    });
+  };
+  combos.forEach((combo) => {
+    combo.button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const willOpen = combo.menu.classList.contains("hidden");
+      closeMenus();
+      if (!willOpen) return;
+      combo.menu.replaceChildren();
+      if (!combo.values.length) {
+        const empty = document.createElement("div");
+        empty.className = "combo-empty";
+        empty.textContent = "暂无最近记录";
+        combo.menu.append(empty);
+      } else {
+        combo.values.forEach((value) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "combo-item";
+          item.textContent = value;
+          item.addEventListener("click", () => {
+            combo.input.value = value;
+            combo.menu.classList.add("hidden");
+          });
+          combo.menu.append(item);
+        });
+      }
+      combo.menu.classList.remove("hidden");
+    });
   });
 }
 
