@@ -277,6 +277,11 @@ function openConnectionModal() {
         }
       } catch (error) {
         updateConnectionStatus({ connected: false, connecting: false, message: "连接失败" });
+        try {
+          state.config = await api("/api/config");
+        } catch (refreshError) {
+          // 连接失败时仍尽力刷新最近记录，配置刷新失败不影响错误提示。
+        }
         throw error;
       }
     },
