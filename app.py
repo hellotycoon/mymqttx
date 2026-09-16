@@ -90,7 +90,15 @@ class ConfigStore:
     def save_broker(self, broker: dict) -> dict:
         with self._lock:
             updated = self.get()
+            host = str(broker.get("host", "127.0.0.1")).strip()[:255] or "127.0.0.1"
+            port = _bounded_int(broker.get("port", 1883), 1, 65535, 1883)
+            recent = updated.get("recentBrokers", [])
+            recent = [{"host": host, "port": port}] + [
+                entry for entry in recent
+                if not (entry.get("host") == host and entry.get("port") == port)
+            ]
             updated["broker"] = broker
+            updated["recentBrokers"] = recent[:5]
             return self.save(updated)
 
     def _write(self, value: dict) -> None:
@@ -117,6 +125,7 @@ class ConfigStore:
             "broker": normalized_broker,
             "publishTopics": _normalize_publish_topics(value.get("publishTopics")),
             "subscriptions": _normalize_subscriptions(value.get("subscriptions")),
+            "recentBrokers": _normalize_recent_brokers(value.get("recentBrokers")),
         }
 
 
@@ -186,6 +195,28 @@ def _normalize_subscriptions(value: Any) -> list[dict]:
                 "enabled": bool(item.get("enabled", False)),
             }
         )
+    return result
+
+
+def _normalize_recent_brokers(value: Any) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    result = []
+    seen = set()
+    for item in value[:20]:
+        if not isinstance(item, dict):
+            continue
+        host = str(item.get("host", "")).strip()[:255]
+        if not host:
+            continue
+        port = _bounded_int(item.get("port", 1883), 1, 65535, 1883)
+        key = (host, port)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append({"host": host, "port": port})
+        if len(result) >= 5:
+            break
     return result
 
 
